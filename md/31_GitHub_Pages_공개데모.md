@@ -1,8 +1,8 @@
 ---
 title: GitHub Pages 읽기 전용 공개 데모
 created_at: "2026-09-06 19:53:21 KST"
-updated_at: "2026-09-06 19:53:21 KST"
-status: 배포 준비 및 검증 중
+updated_at: "2026-09-06 19:57:58 KST"
+status: 공개 배포 및 데스크톱 검증 완료
 document_type: deployment-guide
 ---
 
@@ -37,6 +37,9 @@ document_type: deployment-guide
 ## 검증 기록
 
 - 2026-09-06 19:53:21 KST: 단위/정적 안전성 테스트 4/4, 앱 JS 구문 검사, 허용 목록 빌드(7개 파일) 통과. 실제 Pages 배포 및 브라우저 검증은 아직 대기.
+- 2026-09-06 19:57:58 KST: [Actions 실행 34028762000](https://github.com/seominku/WebTest/actions/runs/34028762000) 성공. 배포 소스 `e8ebcc05914ee1fafcf4f60d8996b61500e00576`. Pages HTTPS 강제 및 About homepage 확인. 자격증명 없이 HTML/JS 2개/CSS/사진 3개 모두 HTTP 200, JS MIME `text/javascript` 확인.
+- 실제 Chrome UI: 지도 타일/2개 및 1개 마커/사진 표시, 샘플 2 선택 후 72㎡→약 21.78평 및 외관 사진 전환 확인. 축소 후 3개 묶음 클릭→샘플 3 선택→새로고침 시 `#sample-3`와 상세 제목 유지. 사진 로드, 현재 데스크톱 가로 넘침 없음, 수집된 브라우저 오류 로그 없음.
+- 모바일용 CSS는 포함했지만 이번 작업에서 실제 Android 기기 화면/터치 검증은 수행하지 않았다. 정식 전체 앱 배포는 기존 운영 전제조건을 별도로 충족해야 한다.
 
 ## 참고
 
