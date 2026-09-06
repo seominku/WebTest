@@ -1,0 +1,80 @@
+{
+  "name": "real-estate-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Real-estate listing platform monorepo",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=24.15.0",
+    "npm": ">=11.19.1 <12"
+  },
+  "packageManager": "npm@11.19.1",
+  "scripts": {
+    "build": "npm run db:generate && npm run build -w @real-estate/db && npm run build -w @real-estate/api && npm run build -w @real-estate/web",
+    "dev": "npm run build -w @real-estate/db && concurrently -n web,api -c cyan,magenta \"npm run dev -w @real-estate/web\" \"npm run start:dev -w @real-estate/api\"",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e -w @real-estate/api",
+    "test:integration": "npm run test:integration -w @real-estate/api",
+    "test:smoke:auth": "node scripts/smoke-auth.mjs",
+    "test:smoke:listings": "node scripts/smoke-listings.mjs",
+    "test:smoke:listings:manage": "node scripts/smoke-agent-listings.mjs",
+    "test:smoke:user-flows": "node scripts/smoke-user-flows.mjs",
+    "test:responsive": "node scripts/capture-responsive.mjs",
+    "test:external-readiness": "node scripts/external-integration-readiness.mjs",
+    "test:operations": "node --test scripts/operations-check.test.mjs",
+    "test:operations:drill": "node --test scripts/operations-drill.test.mjs",
+    "drill:config": "node scripts/drill-config-check.mjs",
+    "drill:app": "npm run build -w @real-estate/api && node scripts/app-failure-drill.mjs",
+    "test:drill:app": "node --test scripts/app-drill-safety.test.mjs",
+    "test:drill:config": "node --test scripts/drill-config-check.test.mjs",
+    "ops:check": "node scripts/operations-check.mjs",
+    "preview:start": "node scripts/preview-local.mjs --serve",
+    "preview:stop": "node scripts/preview-local.mjs --stop",
+    "test:preview": "node --test scripts/preview-safety.test.mjs",
+    "preview:verify": "node scripts/preview-verify.mjs",
+    "deploy:api:check": "node scripts/deploy-api-local.mjs --check",
+    "deploy:api:local": "node scripts/deploy-api-local.mjs --apply",
+    "test:deploy:api": "node --test scripts/deploy-api-local.test.mjs",
+    "security:audit": "npm audit --audit-level=high",
+    "deps:check": "npm ls --all",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:generate": "npm run db:generate -w @real-estate/db",
+    "db:migrate": "npm run db:migrate -w @real-estate/db",
+    "db:deploy": "npm run db:deploy -w @real-estate/db",
+    "db:status": "npm run db:status -w @real-estate/db",
+    "db:seed": "npm run db:seed -w @real-estate/db",
+    "db:validate": "npm run db:validate -w @real-estate/db",
+    "db:backup:verify": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/backup-restore-check.ps1",
+    "recovery:preflight": "node scripts/recovery-preflight.mjs",
+    "test:recovery:preflight": "node --test scripts/recovery-preflight.test.mjs",
+    "recovery:verify": "node scripts/recovery-bundle-check.mjs",
+    "recovery:restore": "node scripts/recovery-bundle-check.mjs --from-backup",
+    "backup:security": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/backup-security-check.ps1",
+    "test:backup:security": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/backup-security-check.ps1 -SelfTest",
+    "test:recovery": "node --test scripts/recovery-common.test.mjs scripts/recovery-preflight.test.mjs scripts/recovery-bundle-input.test.mjs",
+    "docker:up": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/docker-dev.ps1 up",
+    "docker:infra": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/docker-dev.ps1 infra",
+    "docker:down": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/docker-dev.ps1 down",
+    "docker:ps": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/docker-dev.ps1 ps"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "prettier": "^3.6.2"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.2",
+    "mysql2": "3.24.3"
+  },
+  "allowScripts": {
+    "prisma@7.10.0": true,
+    "@prisma/engines@7.10.0": true,
+    "argon2@0.45.1": true,
+    "unrs-resolver@1.12.2": true
+  }
+}

@@ -1,0 +1,228 @@
+name: real-estate-platform
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [backend]
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--requirepass",
+        "${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}",
+      ]
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [backend]
+
+  minio:
+    image: quay.io/minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [backend]
+
+  minio-init:
+    image: quay.io/minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+      S3_BUCKET: ${S3_BUCKET:?Set S3_BUCKET in .env}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" &&
+        mc mb --ignore-existing "local/$$S3_BUCKET" &&
+        mc anonymous set none "local/$$S3_BUCKET"
+    restart: "no"
+    networks: [backend]
+
+  clamav:
+    image: clamav/clamav:stable
+    restart: unless-stopped
+    environment:
+      CLAMAV_NO_MILTERD: "true"
+      CLAMD_STARTUP_TIMEOUT: "1800"
+    ports:
+      - "127.0.0.1:3310:3310"
+    volumes:
+      - clamav-data:/var/lib/clamav
+    networks: [backend]
+
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      APP_ENV: local
+      API_PORT: 4000
+      WEB_ORIGIN: http://localhost:${WEB_PORT:-3000}
+      TRUST_PROXY_HOPS: "0"
+      AUTH_HASH_SECRET: ${AUTH_HASH_SECRET:?Set AUTH_HASH_SECRET in .env}
+      METRICS_TOKEN: ${METRICS_TOKEN:-local-only-metrics-token-change-this-before-shared-use}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: ${S3_REGION}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_FORCE_PATH_STYLE: "true"
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: "3310"
+      GEOCODING_DATA_SHARING_APPROVED: ${GEOCODING_DATA_SHARING_APPROVED:-false}
+      GEOCODING_BASE_URL: ${GEOCODING_BASE_URL:-}
+      GEOCODING_USER_AGENT: ${GEOCODING_USER_AGENT:-real-estate-platform-local/0.1}
+    ports:
+      - "127.0.0.1:${API_PORT:-4000}:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      clamav:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:4000/api/v1/health/live').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [backend, frontend]
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    environment:
+      METRICS_TOKEN: ${METRICS_TOKEN:-local-only-metrics-token-change-this-before-shared-use}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        umask 077;
+        printf '%s' "$$METRICS_TOKEN" > /tmp/metrics-token;
+        exec /bin/prometheus
+        --config.file=/etc/prometheus/prometheus.yml
+        --storage.tsdb.path=/prometheus
+        --web.enable-lifecycle
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infrastructure/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      api:
+        condition: service_healthy
+      alertmanager:
+        condition: service_started
+    networks: [backend]
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    ports:
+      - "127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"
+    volumes:
+      - ./infrastructure/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    networks: [backend]
+
+  web:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:4000/api/v1}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:${API_PORT:-4000}/api/v1
+      API_INTERNAL_BASE_URL: http://api:4000/api/v1
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [frontend]
+
+networks:
+  backend:
+  frontend:
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+  clamav-data:
+  prometheus-data:
+  alertmanager-data:

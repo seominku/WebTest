@@ -1,0 +1,573 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  USER
+  AGENT
+  ADMIN
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum AuthTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum AgencyStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum AgentStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum PropertyType {
+  APARTMENT
+  HOUSE
+  OFFICETEL
+  COMMERCIAL
+  LAND
+}
+
+enum AddressVisibility {
+  APPROXIMATE
+  EXACT_AFTER_INQUIRY
+  PUBLIC
+}
+
+enum TransactionType {
+  SALE
+  JEONSE
+  MONTHLY_RENT
+}
+
+enum ListingStatus {
+  DRAFT
+  REVIEW_PENDING
+  NEEDS_CHANGES
+  APPROVED
+  PUBLISHED
+  PAUSED
+  EXPIRED
+  COMPLETED
+  REJECTED
+  DELETED
+}
+
+enum ListingImageStatus {
+  UPLOADED
+  SCANNING
+  READY
+  REJECTED
+}
+
+enum ReviewDecision {
+  APPROVED
+  NEEDS_CHANGES
+  REJECTED
+}
+
+enum InquiryStatus {
+  OPEN
+  RESPONDED
+  CLOSED
+}
+
+enum ViewingStatus {
+  PENDING
+  CONFIRMED
+  DECLINED
+  CANCELLED
+}
+
+enum ViewingProposalRole {
+  CUSTOMER
+  AGENT
+}
+
+enum ViewingProposalStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+enum ReportReason {
+  FALSE_LISTING
+  DUPLICATE
+  WRONG_PRICE
+  UNAVAILABLE
+  FRAUD_SUSPECTED
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  DISMISSED
+}
+
+enum SanctionType {
+  WARNING
+  TEMPORARY_SUSPENSION
+  PERMANENT_BAN
+}
+
+model User {
+  id                         String                      @id @default(uuid()) @db.Uuid
+  email                      String                      @unique @db.VarChar(320)
+  passwordHash               String                      @map("password_hash") @db.VarChar(255)
+  displayName                String                      @map("display_name") @db.VarChar(100)
+  role                       UserRole                    @default(USER)
+  status                     UserStatus                  @default(PENDING_VERIFICATION)
+  emailVerifiedAt            DateTime?                   @map("email_verified_at") @db.Timestamptz(3)
+  failedLoginCount           Int                         @default(0) @map("failed_login_count")
+  lockedUntil                DateTime?                   @map("locked_until") @db.Timestamptz(3)
+  lastLoginAt                DateTime?                   @map("last_login_at") @db.Timestamptz(3)
+  passwordChangedAt          DateTime                    @default(now()) @map("password_changed_at") @db.Timestamptz(3)
+  createdAt                  DateTime                    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                  DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt                  DateTime?                   @map("deleted_at") @db.Timestamptz(3)
+  agentProfile               AgentProfile?
+  sessions                   Session[]
+  authTokens                 AuthToken[]
+  createdProperties          Property[]                  @relation("PropertyCreator")
+  favorites                  Favorite[]
+  inquiries                  Inquiry[]
+  savedSearches              SavedSearch[]
+  viewingAppointments        ViewingAppointment[]
+  viewingRescheduleProposals ViewingRescheduleProposal[] @relation("ViewingRescheduleProposer")
+  reports                    Report[]                    @relation("ReportReporter")
+  handledReports             Report[]                    @relation("ReportHandler")
+  listingReviews             ListingReview[]
+  listingHistory             ListingHistory[]
+  priceHistory               ListingPriceHistory[]
+  sanctionsReceived          Sanction[]                  @relation("SanctionTarget")
+  sanctionsIssued            Sanction[]                  @relation("SanctionIssuer")
+  sanctionsRevoked           Sanction[]                  @relation("SanctionRevoker")
+  auditLogs                  AuditLog[]
+
+  @@index([role, status])
+  @@index([status, lockedUntil])
+  @@map("users")
+}
+
+model Session {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  tokenHash      String    @unique @map("token_hash") @db.Char(64)
+  csrfSecretHash String    @map("csrf_secret_hash") @db.Char(64)
+  ipHash         String?   @map("ip_hash") @db.Char(64)
+  userAgentHash  String?   @map("user_agent_hash") @db.Char(64)
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz(3)
+  idleExpiresAt  DateTime  @map("idle_expires_at") @db.Timestamptz(3)
+  lastSeenAt     DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(3)
+  revokeReason   String?   @map("revoke_reason") @db.VarChar(100)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@index([idleExpiresAt])
+  @@map("sessions")
+}
+
+model AuthToken {
+  id         String        @id @default(uuid()) @db.Uuid
+  userId     String        @map("user_id") @db.Uuid
+  type       AuthTokenType
+  tokenHash  String        @unique @map("token_hash") @db.Char(64)
+  expiresAt  DateTime      @map("expires_at") @db.Timestamptz(3)
+  consumedAt DateTime?     @map("consumed_at") @db.Timestamptz(3)
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, consumedAt])
+  @@index([expiresAt])
+  @@map("auth_tokens")
+}
+
+model Agency {
+  id            String         @id @default(uuid()) @db.Uuid
+  name          String         @db.VarChar(160)
+  licenseNumber String         @unique @map("license_number") @db.VarChar(50)
+  phone         String         @db.VarChar(30)
+  status        AgencyStatus   @default(PENDING)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  agents        AgentProfile[]
+  properties    Property[]
+
+  @@index([status])
+  @@map("agencies")
+}
+
+model AgentProfile {
+  id                 String      @id @default(uuid()) @db.Uuid
+  userId             String      @unique @map("user_id") @db.Uuid
+  agencyId           String      @map("agency_id") @db.Uuid
+  registrationNumber String      @unique @map("registration_number") @db.VarChar(50)
+  status             AgentStatus @default(PENDING)
+  isRepresentative   Boolean     @default(false) @map("is_representative")
+  createdAt          DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user               User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  agency             Agency      @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+  properties         Property[]
+  listings           Listing[]
+
+  @@index([agencyId, status])
+  @@map("agent_profiles")
+}
+
+model Property {
+  id               String           @id @default(uuid()) @db.Uuid
+  agencyId         String           @map("agency_id") @db.Uuid
+  agentId          String           @map("agent_id") @db.Uuid
+  createdById      String           @map("created_by_id") @db.Uuid
+  type             PropertyType
+  areaSquareMeters Decimal          @map("area_square_meters") @db.Decimal(10, 2)
+  floor            Int?
+  totalFloors      Int?             @map("total_floors")
+  rooms            Int?
+  bathrooms        Int?
+  buildYear        Int?             @map("build_year")
+  options          Json?
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt        DateTime?        @map("deleted_at") @db.Timestamptz(3)
+  agency           Agency           @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+  agent            AgentProfile     @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  createdBy        User             @relation("PropertyCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  address          PropertyAddress?
+  listings         Listing[]
+
+  @@index([agencyId, deletedAt])
+  @@index([agentId, deletedAt])
+  @@index([type, deletedAt])
+  @@map("properties")
+}
+
+model PropertyAddress {
+  id            String            @id @default(uuid()) @db.Uuid
+  propertyId    String            @unique @map("property_id") @db.Uuid
+  sido          String            @db.VarChar(50)
+  sigungu       String            @db.VarChar(50)
+  eupmyeondong  String            @db.VarChar(80)
+  roadAddress   String            @map("road_address") @db.VarChar(255)
+  jibunAddress  String?           @map("jibun_address") @db.VarChar(255)
+  detailAddress String?           @map("detail_address") @db.VarChar(255)
+  postalCode    String?           @map("postal_code") @db.VarChar(10)
+  latitude      Decimal?          @db.Decimal(10, 7)
+  longitude     Decimal?          @db.Decimal(10, 7)
+  visibility    AddressVisibility @default(APPROXIMATE)
+  property      Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([sido, sigungu, eupmyeondong])
+  @@map("property_addresses")
+}
+
+model Listing {
+  id                  String                @id @default(uuid()) @db.Uuid
+  propertyId          String                @map("property_id") @db.Uuid
+  agentId             String                @map("agent_id") @db.Uuid
+  transactionType     TransactionType       @map("transaction_type")
+  status              ListingStatus         @default(DRAFT)
+  title               String                @db.VarChar(120)
+  description         String                @db.Text
+  salePriceKrw        BigInt?               @map("sale_price_krw")
+  depositKrw          BigInt?               @map("deposit_krw")
+  monthlyRentKrw      BigInt?               @map("monthly_rent_krw")
+  maintenanceFeeKrw   BigInt?               @map("maintenance_fee_krw")
+  version             Int                   @default(1)
+  publishedAt         DateTime?             @map("published_at") @db.Timestamptz(3)
+  expiresAt           DateTime?             @map("expires_at") @db.Timestamptz(3)
+  completedAt         DateTime?             @map("completed_at") @db.Timestamptz(3)
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt           DateTime?             @map("deleted_at") @db.Timestamptz(3)
+  property            Property              @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  agent               AgentProfile          @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  images              ListingImage[]
+  favorites           Favorite[]
+  inquiries           Inquiry[]
+  savedSearchMatches  SavedSearchMatch[]
+  viewingAppointments ViewingAppointment[]
+  reports             Report[]
+  reviews             ListingReview[]
+  history             ListingHistory[]
+  priceHistory        ListingPriceHistory[]
+
+  @@index([status, publishedAt])
+  @@index([transactionType, status])
+  @@index([propertyId, createdAt])
+  @@index([agentId, status])
+  @@index([expiresAt, status])
+  @@map("listings")
+}
+
+model ListingImage {
+  id                  String             @id @default(uuid()) @db.Uuid
+  listingId           String             @map("listing_id") @db.Uuid
+  objectKey           String             @unique @map("object_key") @db.VarChar(512)
+  thumbnailObjectKey  String?            @unique @map("thumbnail_object_key") @db.VarChar(512)
+  mimeType            String             @map("mime_type") @db.VarChar(100)
+  sizeBytes           Int                @map("size_bytes")
+  width               Int?
+  height              Int?
+  sha256              String             @db.Char(64)
+  sortOrder           Int                @default(0) @map("sort_order")
+  status              ListingImageStatus @default(UPLOADED)
+  rejectionReason     String?            @map("rejection_reason") @db.VarChar(255)
+  processingStartedAt DateTime?          @map("processing_started_at") @db.Timestamptz(3)
+  processingAttempts  Int                @default(0) @map("processing_attempts")
+  nextAttemptAt       DateTime?          @map("next_attempt_at") @db.Timestamptz(3)
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  listing             Listing            @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, sortOrder])
+  @@index([listingId, status])
+  @@index([sha256])
+  @@map("listing_images")
+}
+
+model Favorite {
+  userId    String   @map("user_id") @db.Uuid
+  listingId String   @map("listing_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@id([userId, listingId])
+  @@index([listingId])
+  @@map("favorites")
+}
+
+model SavedSearch {
+  id                  String             @id @default(uuid()) @db.Uuid
+  userId              String             @map("user_id") @db.Uuid
+  name                String             @db.VarChar(80)
+  transactionType     TransactionType?   @map("transaction_type")
+  propertyType        PropertyType?      @map("property_type")
+  sido                String?            @db.VarChar(50)
+  sigungu             String?            @db.VarChar(50)
+  minPriceManwon      BigInt?            @map("min_price_manwon")
+  maxPriceManwon      BigInt?            @map("max_price_manwon")
+  minAreaSquareMeters Decimal?           @map("min_area_square_meters") @db.Decimal(10, 2)
+  maxAreaSquareMeters Decimal?           @map("max_area_square_meters") @db.Decimal(10, 2)
+  sort                String             @default("LATEST") @db.VarChar(20)
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matches             SavedSearchMatch[]
+
+  @@index([userId, updatedAt])
+  @@map("saved_searches")
+}
+
+model SavedSearchMatch {
+  id            String      @id @default(uuid()) @db.Uuid
+  savedSearchId String      @map("saved_search_id") @db.Uuid
+  listingId     String      @map("listing_id") @db.Uuid
+  viewedAt      DateTime?   @map("viewed_at") @db.Timestamptz(3)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  savedSearch   SavedSearch @relation(fields: [savedSearchId], references: [id], onDelete: Cascade)
+  listing       Listing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([savedSearchId, listingId])
+  @@index([listingId])
+  @@index([savedSearchId, viewedAt, createdAt])
+  @@map("saved_search_matches")
+}
+
+model ViewingAppointment {
+  id                  String                      @id @default(uuid()) @db.Uuid
+  listingId           String                      @map("listing_id") @db.Uuid
+  userId              String                      @map("user_id") @db.Uuid
+  requestedAt         DateTime                    @map("requested_at") @db.Timestamptz(3)
+  message             String?                     @db.VarChar(500)
+  status              ViewingStatus               @default(PENDING)
+  responseMessage     String?                     @map("response_message") @db.VarChar(500)
+  respondedAt         DateTime?                   @map("responded_at") @db.Timestamptz(3)
+  createdAt           DateTime                    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  listing             Listing                     @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  user                User                        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  rescheduleProposals ViewingRescheduleProposal[]
+
+  @@index([userId, requestedAt])
+  @@index([listingId, status, requestedAt])
+  @@map("viewing_appointments")
+}
+
+model ViewingRescheduleProposal {
+  id                   String                @id @default(uuid()) @db.Uuid
+  viewingAppointmentId String                @map("viewing_appointment_id") @db.Uuid
+  proposedById         String                @map("proposed_by_id") @db.Uuid
+  proposedByRole       ViewingProposalRole   @map("proposed_by_role")
+  proposedAt           DateTime              @map("proposed_at") @db.Timestamptz(3)
+  message              String?               @db.VarChar(500)
+  status               ViewingProposalStatus @default(PENDING)
+  responseMessage      String?               @map("response_message") @db.VarChar(500)
+  respondedAt          DateTime?             @map("responded_at") @db.Timestamptz(3)
+  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  viewingAppointment   ViewingAppointment    @relation(fields: [viewingAppointmentId], references: [id], onDelete: Restrict)
+  proposedBy           User                  @relation("ViewingRescheduleProposer", fields: [proposedById], references: [id], onDelete: Restrict)
+
+  @@index([viewingAppointmentId, status, createdAt])
+  @@index([proposedById, createdAt])
+  @@map("viewing_reschedule_proposals")
+}
+
+model Inquiry {
+  id               String        @id @default(uuid()) @db.Uuid
+  listingId        String        @map("listing_id") @db.Uuid
+  userId           String        @map("user_id") @db.Uuid
+  message          String        @db.Text
+  responseMessage  String?       @map("response_message") @db.Text
+  responseViewedAt DateTime?     @map("response_viewed_at") @db.Timestamptz(3)
+  status           InquiryStatus @default(OPEN)
+  respondedAt      DateTime?     @map("responded_at") @db.Timestamptz(3)
+  closedAt         DateTime?     @map("closed_at") @db.Timestamptz(3)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  listing          Listing       @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  user             User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([listingId, status])
+  @@index([userId, createdAt])
+  @@map("inquiries")
+}
+
+model Report {
+  id             String       @id @default(uuid()) @db.Uuid
+  listingId      String       @map("listing_id") @db.Uuid
+  reporterId     String       @map("reporter_id") @db.Uuid
+  handledById    String?      @map("handled_by_id") @db.Uuid
+  reason         ReportReason
+  details        String?      @db.Text
+  status         ReportStatus @default(OPEN)
+  resolutionNote String?      @map("resolution_note") @db.Text
+  resolvedAt     DateTime?    @map("resolved_at") @db.Timestamptz(3)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  listing        Listing      @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  reporter       User         @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+  handledBy      User?        @relation("ReportHandler", fields: [handledById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([listingId, status])
+  @@index([reporterId, createdAt])
+  @@map("reports")
+}
+
+model ListingReview {
+  id         String         @id @default(uuid()) @db.Uuid
+  listingId  String         @map("listing_id") @db.Uuid
+  reviewerId String         @map("reviewer_id") @db.Uuid
+  decision   ReviewDecision
+  note       String?        @db.Text
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  listing    Listing        @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  reviewer   User           @relation(fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@index([listingId, createdAt])
+  @@index([reviewerId, createdAt])
+  @@map("listing_reviews")
+}
+
+model ListingHistory {
+  id         String         @id @default(uuid()) @db.Uuid
+  listingId  String         @map("listing_id") @db.Uuid
+  actorId    String?        @map("actor_id") @db.Uuid
+  eventType  String         @map("event_type") @db.VarChar(80)
+  fromStatus ListingStatus? @map("from_status")
+  toStatus   ListingStatus? @map("to_status")
+  changes    Json?
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  listing    Listing        @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  actor      User?          @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([listingId, createdAt])
+  @@index([actorId, createdAt])
+  @@map("listing_history")
+}
+
+model ListingPriceHistory {
+  id                String   @id @default(uuid()) @db.Uuid
+  listingId         String   @map("listing_id") @db.Uuid
+  changedById       String?  @map("changed_by_id") @db.Uuid
+  salePriceKrw      BigInt?  @map("sale_price_krw")
+  depositKrw        BigInt?  @map("deposit_krw")
+  monthlyRentKrw    BigInt?  @map("monthly_rent_krw")
+  maintenanceFeeKrw BigInt?  @map("maintenance_fee_krw")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  listing           Listing  @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  changedBy         User?    @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([listingId, createdAt])
+  @@map("listing_price_history")
+}
+
+model Sanction {
+  id           String       @id @default(uuid()) @db.Uuid
+  targetUserId String       @map("target_user_id") @db.Uuid
+  issuedById   String       @map("issued_by_id") @db.Uuid
+  revokedById  String?      @map("revoked_by_id") @db.Uuid
+  type         SanctionType
+  reason       String       @db.Text
+  startsAt     DateTime     @default(now()) @map("starts_at") @db.Timestamptz(3)
+  endsAt       DateTime?    @map("ends_at") @db.Timestamptz(3)
+  revokedAt    DateTime?    @map("revoked_at") @db.Timestamptz(3)
+  revokeReason String?      @map("revoke_reason") @db.Text
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  targetUser   User         @relation("SanctionTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
+  issuedBy     User         @relation("SanctionIssuer", fields: [issuedById], references: [id], onDelete: Restrict)
+  revokedBy    User?        @relation("SanctionRevoker", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@index([targetUserId, revokedAt, endsAt])
+  @@index([issuedById, createdAt])
+  @@map("sanctions")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  actorId      String?  @map("actor_id") @db.Uuid
+  action       String   @db.VarChar(100)
+  resourceType String   @map("resource_type") @db.VarChar(80)
+  resourceId   String?  @map("resource_id") @db.VarChar(100)
+  requestId    String?  @map("request_id") @db.VarChar(100)
+  ipHash       String?  @map("ip_hash") @db.Char(64)
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  actor        User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([resourceType, resourceId, createdAt])
+  @@index([action, createdAt])
+  @@index([requestId])
+  @@map("audit_logs")
+}

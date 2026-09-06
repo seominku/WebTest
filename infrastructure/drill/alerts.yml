@@ -1,0 +1,11 @@
+groups:
+  - name: isolated-drill
+    rules:
+      - alert: DrillExporterDown
+        expr: up{job="drill-exporter"} == 0
+        for: 10s
+        labels:
+          severity: warning
+          environment: isolated-drill
+        annotations:
+          summary: 격리 훈련용 가상 지표 서버 연결 중단

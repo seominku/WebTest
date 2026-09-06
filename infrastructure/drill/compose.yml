@@ -1,0 +1,51 @@
+name: real-estate-drill
+
+services:
+  exporter:
+    image: node@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e
+    command: ["node", "/drill/metrics.mjs"]
+    user: "1000:1000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: "no"
+    volumes:
+      - ./metrics.mjs:/drill/metrics.mjs:ro
+    networks: [drill]
+
+  prometheus:
+    image: prom/prometheus@sha256:5ce7540c3c00ef4ab0c9d2c995c6a5b9c421f44b4a115d97a2c7af3b1c21cbb0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=1h
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: "no"
+    ports: ["127.0.0.1:19090:9090"]
+    tmpfs: ["/prometheus:mode=1777,size=128m"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alerts.yml:/etc/prometheus/alerts.yml:ro
+    networks: [drill]
+
+  alertmanager:
+    image: prom/alertmanager@sha256:690c7b525f4367aa91f73e2f91c632206d32e97c6384bdbf2fb7a861b420340d
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --cluster.listen-address=
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: "no"
+    ports: ["127.0.0.1:19093:9093"]
+    tmpfs: ["/alertmanager:mode=1777,size=32m"]
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    networks: [drill]
+
+networks:
+  drill:
+    internal: true

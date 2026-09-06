@@ -1,0 +1,10 @@
+.next/
+**/.next/
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+coverage/
+packages/db/src/generated/
+md/
+pdf/

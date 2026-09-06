@@ -1,0 +1,29 @@
+groups:
+  - name: real-estate-image-maintenance
+    rules:
+      - alert: ListingImageOrphanCleanupFailed
+        expr: real_estate_image_orphan_cleanup_last_error == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 매물 이미지 고아 파일 정리가 실패했습니다.
+          description: API의 최근 고아 이미지 정리 작업에서 오류가 발생한 상태가 5분 이상 지속됐습니다.
+
+      - alert: ListingImageOrphanCleanupStale
+        expr: time() - real_estate_image_orphan_cleanup_last_success_timestamp_seconds > 93600
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 매물 이미지 고아 파일 정리가 26시간 이상 성공하지 않았습니다.
+          description: 정리 작업 스케줄 또는 API 실행 상태를 확인해야 합니다.
+
+      - alert: ListingImageOrphanCleanupStuck
+        expr: real_estate_image_orphan_cleanup_running == 1
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: 매물 이미지 고아 파일 정리가 장시간 실행 중입니다.
+          description: 저장소 연결이나 삭제 작업이 멈췄는지 확인해야 합니다.

@@ -1,0 +1,27 @@
+# Dependencies and generated output
+node_modules/
+.next/
+dist/
+coverage/
+.artifacts/
+backups/
+*.tsbuildinfo
+packages/db/src/generated/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# IDE and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local object-storage data
+.minio-data/
