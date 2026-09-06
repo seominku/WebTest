@@ -10,9 +10,7 @@
 		-Server
 	}
 	route {
-		basic_auth bcrypt "Private property preview" {
-			import /data/preview-auth.caddy
-		}
+		import /data/preview-access.caddy
 		@blocked path /api/v1/health* /api/v1/metrics* /api/v1/admin* /api/v1/auth/register* /api/v1/auth/verify-email*
 		respond @blocked 404
 		request_body {

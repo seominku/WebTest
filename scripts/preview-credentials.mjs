@@ -56,6 +56,19 @@ assert.ok(Date.parse(state.expiresAt) > Date.now());
 const run = validRun(state.run),
   prefix = `property-preview-${run}`;
 const directory = resolve(root, ".artifacts", `preview-${run}`);
+let accessMode = "protected";
+try {
+  accessMode = JSON.parse(
+    await readFile(resolve(directory, "access-mode.json"), "utf8"),
+  ).mode;
+} catch (error) {
+  if (error.code !== "ENOENT") throw error;
+}
+assert.equal(
+  accessMode,
+  "protected",
+  "Public browsing has no entrance password; switch to protected mode first",
+);
 const accessPath = resolve(directory, "access.txt"),
   authPath = resolve(directory, "preview-auth.caddy");
 const previousAccess = await readFile(accessPath, "utf8");

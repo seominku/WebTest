@@ -1,0 +1,3 @@
+basic_auth bcrypt "Private property preview" {
+	import /data/preview-auth.caddy
+}

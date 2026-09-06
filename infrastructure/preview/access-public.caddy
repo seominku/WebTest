@@ -1,0 +1,2 @@
+# User-approved public browsing of synthetic listings only.
+# Application sessions, ownership/role checks, CSRF, and blocked routes remain active.

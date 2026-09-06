@@ -194,6 +194,11 @@ async function create(service, args, gateway = false) {
     const authFile = resolve(directory, "preview-auth.caddy");
     await writeFile(authFile, `preview ${childEnv.PREVIEW_PASSWORD_HASH}\n`);
     await docker(["cp", authFile, `${id}:/data/preview-auth.caddy`]);
+    await docker([
+      "cp",
+      resolve(root, "infrastructure/preview/access-protected.caddy"),
+      `${id}:/data/preview-access.caddy`,
+    ]);
   }
   assertIsolated(await owned("container", id), networkName, gateway);
   await docker(["start", id]);

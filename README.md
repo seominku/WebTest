@@ -2,7 +2,7 @@
 
 [웹사이트 접속하기 · 임시 테스트 사이트](https://packages-sticks-limiting-website.trycloudflare.com/listings)
 
-> 별도로 전달받은 접속 암호가 필요합니다. 가상 데이터 테스트용이며 **2026년 9월 6일 22:13:49 KST 자동 종료 예정**입니다. 호스트 컴퓨터·Docker·터널이 꺼지면 더 일찍 접속이 중단될 수 있습니다. 영구 운영 주소가 아니며, 재실행 시 주소가 변경될 수 있습니다.
+> **로그인 없이 매물·지도·샘플 사진을 볼 수 있습니다.** 매물 등록·수정 등 계정 기능은 별도 로그인이 필요합니다. 가상 데이터 테스트용이며 **2026년 9월 6일 22:13:49 KST 자동 종료 예정**입니다. 호스트 컴퓨터·Docker·터널이 꺼지면 더 일찍 접속이 중단될 수 있습니다. 영구 운영 주소가 아니며, 재실행 시 주소가 변경될 수 있습니다.
 
 부동산 매물 서비스의 개발·보안·장애 대응·유지보수 과정을 연습하기 위한 모노레포입니다. `real-estate-platform`은 브랜드명이 정해질 때까지 사용하는 내부 작업명입니다.
 
@@ -47,6 +47,8 @@ GitHub 공개 저장소: [seominku/WebTest](https://github.com/seominku/WebTest)
 ## 시작하기
 
 가상 데이터만 있는 암호 보호 외부 테스트 환경은 `npm.cmd run preview:start`로 실행하고 `npm.cmd run preview:stop`으로 종료합니다. 전용 웹 이미지가 먼저 필요하며 원본 Compose를 공개하지 않습니다. HTTPS/사진 업로드 검증은 `npm.cmd run preview:verify`, 안전 함수 테스트는 `npm.cmd run test:preview`입니다. 주소·만료 시각은 `.artifacts/preview-status.json`, 암호는 실행별 소유자 전용 `access.txt`에만 저장합니다. 4시간 제한·재실행·보존 볼륨·실기기 점검 범위는 30번 문서를 참고하세요.
+
+현재 실행은 사용자의 별도 승인으로 입구 암호를 해제했습니다. `npm.cmd run preview:public`은 실행 중인 가상 매물의 비로그인 조회를 허용하고, `npm.cmd run preview:protect`는 입구 암호를 다시 적용합니다. 앱의 세션/권한 검사는 유지됩니다. `preview:verify`는 공개 모드에서는 비로그인 조회와 보호 경로 차단을 읽기 위주로 점검하며 사진을 업로드하지 않습니다. 다음 새 환경의 `preview:start` 기본값은 계속 암호 보호입니다.
 
 Windows의 백업 보호 상태는 `npm.cmd run backup:security`로 읽기 전용 점검합니다. 평문 형식 파일이나 추가 ACL 허용 규칙 등이 있으면 `needs_attention`을 반환하며, 권한 변경·암호화·삭제는 하지 않습니다. 현재 자동 삭제는 없고 실제 암호화 키 방식은 사용자 선택을 기다리는 상태입니다. 자세한 범위는 27번 문서를 참고하세요.
 

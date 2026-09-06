@@ -3,6 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { quickOrigin, validRun } from "./preview-safety.mjs";
+import { checkPublicBrowsing } from "./preview-public-check.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const state = JSON.parse(
@@ -10,6 +11,29 @@ const state = JSON.parse(
 );
 assert.equal(state.stage, "ready");
 const directory = resolve(root, ".artifacts", `preview-${validRun(state.run)}`);
+let publicBrowsing = false;
+try {
+  publicBrowsing =
+    JSON.parse(await readFile(resolve(directory, "access-mode.json"), "utf8"))
+      .mode === "public";
+} catch (error) {
+  if (error.code !== "ENOENT") throw error;
+}
+if (publicBrowsing) {
+  const report = {
+    checkedAt: new Date().toISOString(),
+    origin: quickOrigin(state.origin),
+    passed: true,
+    mode: "public",
+    checks: await checkPublicBrowsing(quickOrigin(state.origin)),
+  };
+  await writeFile(
+    resolve(directory, "verification.json"),
+    JSON.stringify(report, null, 2),
+  );
+  console.log(JSON.stringify(report, null, 2));
+  process.exit(0);
+}
 const access = await readFile(resolve(directory, "access.txt"), "utf8");
 const password = access.match(/^암호: (.+)$/m)?.[1];
 const username = access.match(/^사용자 이름: (.+)$/m)?.[1];

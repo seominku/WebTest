@@ -36,6 +36,8 @@
     "ops:check": "node scripts/operations-check.mjs",
     "preview:start": "node scripts/preview-local.mjs --serve",
     "preview:stop": "node scripts/preview-local.mjs --stop",
+    "preview:public": "node scripts/preview-access.mjs --public",
+    "preview:protect": "node scripts/preview-access.mjs --protected",
     "test:preview": "node --test scripts/preview-safety.test.mjs",
     "preview:verify": "node scripts/preview-verify.mjs",
     "deploy:api:check": "node scripts/deploy-api-local.mjs --check",
