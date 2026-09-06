@@ -2,6 +2,8 @@
 
 부동산 매물 서비스의 개발·보안·장애 대응·유지보수 과정을 연습하기 위한 모노레포입니다. `real-estate-platform`은 브랜드명이 정해질 때까지 사용하는 내부 작업명입니다.
 
+GitHub 공개 저장소: [seominku/WebTest](https://github.com/seominku/WebTest). 소스와 개발 문서를 공유하는 저장소이며, GitHub 푸시 자체가 실제 웹사이트의 운영 배포를 의미하지 않습니다. 실제 환경 설정·비밀번호·백업·임시 실행 데이터는 포함하지 않습니다.
+
 ## 구성
 
 - `apps/web`: Next.js App Router 웹 앱
