@@ -1,12 +1,14 @@
 ---
 title: GitHub Pages 읽기 전용 공개 데모
 created_at: "2026-09-06 19:53:21 KST"
-updated_at: "2026-09-06 19:57:58 KST"
-status: 공개 배포 및 데스크톱 검증 완료
+updated_at: "2026-09-07 19:20:10 KST"
+status: 이전 간소화 데모 기록 · 원본 화면 미리보기로 교체
 document_type: deployment-guide
 ---
 
 # GitHub Pages 공개 데모
+
+> 2026-09-07: 사용자가 원본 화면 사용과 서비스 미운영을 요청하여 [32번 원본 화면 미리보기](./32_원본화면_GitHub_Pages_미리보기.md) 방식으로 전환한다. 아래 내용은 9월 6일 간소화 데모의 이력이며 현재 배포 절차가 아니다. 이전 데모 소스/빌드 도구는 Git 이력에서 복구할 수 있다.
 
 - 요청: 임시 터널 종료 시간과 PC 실행 상태에 의존하지 않는 GitHub 웹사이트 주소.
 - 주소: https://seominku.github.io/WebTest/ (배포 성공 여부는 아래 검증 기록 참고)

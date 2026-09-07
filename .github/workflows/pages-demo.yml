@@ -1,12 +1,16 @@
-name: Deploy read-only GitHub Pages demo
+name: Deploy original website preview
 on:
   push:
     branches: [main]
     paths:
-      - "demo/github-pages/**"
-      - "apps/web/public/sample-listings/**"
-      - "scripts/build-pages-demo.mjs"
-      - "scripts/pages-demo.test.mjs"
+      - "apps/web/**"
+      - "packages/shared/**"
+      - "packages/config/**"
+      - "infrastructure/pages/**"
+      - "scripts/build-pages-original.mjs"
+      - "scripts/pages-original.test.mjs"
+      - "package.json"
+      - "package-lock.json"
       - ".github/workflows/pages-demo.yml"
   workflow_dispatch:
 
@@ -20,19 +24,26 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: "24"
-      - run: node --test scripts/pages-demo.test.mjs
-      - run: node scripts/build-pages-demo.mjs
+          node-version: "24.15.0"
+      - run: npm install --global npm@11.19.1
+      - run: npm ci --ignore-scripts
+      - run: node --test scripts/pages-original.test.mjs
+      - name: Export original Next.js screens
+        id: export
+        run: node scripts/build-pages-original.mjs
+      - run: node --test scripts/pages-original.test.mjs
+        env:
+          CHECK_PAGES_OUTPUT: "1"
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
-          path: .artifacts/github-pages
+          path: ${{ steps.export.outputs.path }}
   deploy:
     needs: build
     runs-on: ubuntu-latest
